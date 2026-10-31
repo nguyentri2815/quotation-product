@@ -1,0 +1,3 @@
+* text=auto eol=lf
+# Runtime source is also the byte-pinned reference used by the sibling workshop.
+/src/** -text
