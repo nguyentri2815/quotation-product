@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { createBrowserRouter, Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { QuotationList } from './pages/QuotationList'
-import { CreateQuotation } from './pages/CreateQuotation'
+import { QuotationEntry, SelectProduct } from './pages/SelectProduct'
 import { QuotationDetail } from './pages/QuotationDetail'
 import { Icon } from './components/Icon'
 import styles from './components/ui.module.css'
@@ -41,7 +41,7 @@ function Layout() {
         </nav>
         <div className={styles.sidebarFooter}>
           <span className={styles.versionDot} />
-          PREVIEW · CHẶNG 1<small>Một khách hàng. Một tài sản.</small>
+          Dữ liệu mô phỏng
         </div>
       </aside>
       <div className={styles.workspace}>
@@ -51,7 +51,7 @@ function Layout() {
           </span>
           <span className={styles.demoBadge}>
             <span />
-            Dữ liệu và biểu phí giả lập
+            Dữ liệu mô phỏng
           </span>
         </header>
         <main id="main" tabIndex={-1} className={styles.main}>
@@ -83,7 +83,8 @@ export const router = createBrowserRouter([
     children: [
       { path: '/', element: <Navigate to="/quotations" replace /> },
       { path: '/quotations', element: <QuotationList /> },
-      { path: '/quotations/new', element: <CreateQuotation /> },
+      { path: '/products', element: <SelectProduct /> },
+      { path: '/quotations/new', element: <QuotationEntry /> },
       { path: '/quotations/:id', element: <QuotationDetail /> },
       { path: '*', element: <NotFound /> },
     ],

@@ -1,7 +1,9 @@
-import type { FieldErrors, Premium, Quotation, QuotationDraft, ValidationResult } from './types'
+import { getPropertyProduct } from './products'
+import type { PropertyProductCode } from './products'
+import type { CalculatedPremium, ProductInput, FieldErrors, Premium, QuotationDraft, ValidationResult } from './types'
 
-export const MIN_SUM_INSURED = 1_000_000
-export const MAX_SUM_INSURED = 100_000_000_000
+export const MIN_SUM_INSURED = getPropertyProduct('BASIC_PROPERTY').minSumInsured
+export const MAX_SUM_INSURED = getPropertyProduct('BASIC_PROPERTY').maxSumInsured
 
 function calendarDay(date: string): number | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null
@@ -16,7 +18,8 @@ export function calendarDays(start: string, end: string): number | null {
   return first === null || last === null ? null : last - first
 }
 
-export function validateDraft(draft: QuotationDraft): FieldErrors {
+export function validateDraft(draft: QuotationDraft, productCode: PropertyProductCode = 'BASIC_PROPERTY'): FieldErrors {
+  const product = getPropertyProduct(productCode)
   const errors: FieldErrors = {}
   if (!draft.customerName.trim()) errors.customerName = 'Vui lòng nhập tên khách hàng.'
   else if (draft.customerName.trim().length > 150)
@@ -34,21 +37,24 @@ export function validateDraft(draft: QuotationDraft): FieldErrors {
   if (
     !/^\d+$/.test(draft.sumInsured) ||
     !Number.isSafeInteger(sum) ||
-    sum < MIN_SUM_INSURED ||
-    sum > MAX_SUM_INSURED
+    sum < product.minSumInsured ||
+    sum > product.maxSumInsured
   ) {
-    errors.sumInsured = 'Nhập số nguyên từ 1.000.000 đến 100.000.000.000 VND.'
+    errors.sumInsured = `Nhập số nguyên từ ${product.minSumInsured.toLocaleString('vi-VN')} đến ${product.maxSumInsured.toLocaleString('vi-VN')} VND.`
   }
   if (calendarDay(draft.startDate) === null) errors.startDate = 'Vui lòng chọn ngày bắt đầu hợp lệ.'
   if (calendarDay(draft.endDate) === null) errors.endDate = 'Vui lòng chọn ngày kết thúc hợp lệ.'
   const days = calendarDays(draft.startDate, draft.endDate)
-  if (days !== null && days <= 0) errors.endDate = 'Ngày kết thúc phải sau ngày bắt đầu.'
-  else if (days !== null && days > 365) errors.endDate = 'Thời hạn bảo hiểm tối đa 365 ngày.'
+  if (days !== null && days < product.minDays) errors.endDate = 'Ngày kết thúc phải sau ngày bắt đầu.'
+  else if (days !== null && days > product.maxDays) errors.endDate = `Thời hạn bảo hiểm tối đa ${product.maxDays} ngày.`
   return errors
 }
 
-export function validateAndBuildInput(draft: QuotationDraft): ValidationResult {
-  const errors = validateDraft(draft)
+export function validateAndBuildInput(draft: QuotationDraft): ValidationResult
+export function validateAndBuildInput(draft: QuotationDraft, productCode: PropertyProductCode): ValidationResult<ProductInput>
+export function validateAndBuildInput(draft: QuotationDraft, productCode: PropertyProductCode = 'BASIC_PROPERTY'): ValidationResult<ProductInput> {
+  const product = getPropertyProduct(productCode)
+  const errors = validateDraft(draft, product.code)
   if (Object.keys(errors).length)
     return { success: false, message: 'Vui lòng kiểm tra các trường được đánh dấu.', errors }
   return {
@@ -56,7 +62,8 @@ export function validateAndBuildInput(draft: QuotationDraft): ValidationResult {
     data: {
       type: 'NORMAL',
       line: 'PROPERTY',
-      product: 'BASIC_PROPERTY',
+      product: product.code,
+      productVersion: product.version,
       currency: 'VND',
       customer: {
         name: draft.customerName.trim(),
@@ -73,24 +80,25 @@ export function validateAndBuildInput(draft: QuotationDraft): ValidationResult {
   }
 }
 
-export function calculatePremium(sumInsured: number, startDate: string, endDate: string): Premium {
+export function calculatePremium(sumInsured: number, startDate: string, endDate: string, productCode: PropertyProductCode = 'BASIC_PROPERTY'): Premium {
+  const product = getPropertyProduct(productCode)
   const days = calendarDays(startDate, endDate)
   if (
     !Number.isSafeInteger(sumInsured) ||
-    sumInsured < MIN_SUM_INSURED ||
-    sumInsured > MAX_SUM_INSURED ||
+    sumInsured < product.minSumInsured ||
+    sumInsured > product.maxSumInsured ||
     days === null ||
-    days <= 0 ||
-    days > 365
+    days < product.minDays ||
+    days > product.maxDays
   ) {
     throw new RangeError('Số tiền bảo hiểm hoặc thời hạn không hợp lệ.')
   }
-  const net = Math.round((sumInsured * 0.001 * days) / 365)
-  const tax = Math.round(net * 0.1)
+  const net = Math.round((sumInsured * product.annualRate * days) / 365)
+  const tax = Math.round(net * product.taxRate)
   return {
     days,
-    annualRate: 0.001,
-    taxRate: 0.1,
+    annualRate: product.annualRate,
+    taxRate: product.taxRate,
     net,
     tax,
     total: net + tax,
@@ -120,7 +128,8 @@ export function parseQuotationInput(value: unknown): ValidationResult {
     !isRecord(value) ||
     value.type !== 'NORMAL' ||
     value.line !== 'PROPERTY' ||
-    value.product !== 'BASIC_PROPERTY' ||
+    !['BASIC_PROPERTY','EXTENDED_PROPERTY'].includes(String(value.product)) ||
+    value.productVersion !== 1 ||
     value.currency !== 'VND'
   )
     return malformed
@@ -146,38 +155,22 @@ export function parseQuotationInput(value: unknown): ValidationResult {
     sumInsured: String(asset.sumInsured),
     startDate: period.startDate,
     endDate: period.endDate,
-  })
+  }, value.product as PropertyProductCode)
 }
 
-export function parseQuotation(value: unknown): Quotation | null {
-  if (!isRecord(value)) return null
-  const result = parseQuotationInput(value)
-  if (
-    !result.success ||
-    typeof value.id !== 'string' ||
-    !value.id ||
-    typeof value.number !== 'string' ||
-    !/^Q-\d{4}-\d{6,}$/.test(value.number) ||
-    typeof value.createdAt !== 'string' ||
-    !Number.isFinite(Date.parse(value.createdAt)) ||
-    value.status !== 'CREATED' ||
-    !isRecord(value.premium)
-  )
-    return null
-  const { data } = result
-  const expected = calculatePremium(
-    data.asset.sumInsured,
-    data.period.startDate,
-    data.period.endDate,
-  )
-  const storedPremium = value.premium
-  if (!Object.entries(expected).every(([key, amount]) => storedPremium[key] === amount)) return null
+export { parseQuotation } from './records'
+
+// Pricing receipt belongs to the current draft; the saved record has its own terms snapshot.
+export function calculateDraftPremium(draft: QuotationDraft, productCode: PropertyProductCode): CalculatedPremium {
+  const product = getPropertyProduct(productCode)
   return {
-    ...data,
-    id: value.id,
-    number: value.number,
-    createdAt: value.createdAt,
-    status: 'CREATED',
-    premium: expected,
+    ...calculatePremium(Number(draft.sumInsured), draft.startDate, draft.endDate, product.code),
+    productCode: product.code, productVersion: product.version, productName: product.name,
+    inputs: { sumInsured: draft.sumInsured, startDate: draft.startDate, endDate: draft.endDate },
   }
+}
+
+export function premiumMatchesDraft(premium: CalculatedPremium | null, draft: QuotationDraft, productCode: PropertyProductCode): boolean {
+  const product = getPropertyProduct(productCode)
+  return Boolean(premium && premium.productCode === product.code && premium.productVersion === product.version && !pricingInputsChanged({ ...draft, ...premium.inputs }, draft))
 }

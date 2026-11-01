@@ -81,7 +81,7 @@ export function QuotationDetail() {
               Tạo bản chào mới
             </Link>
           </div>
-          <FixedInformation />
+          <FixedInformation productName={`${quotation.productSnapshot.name} · v${quotation.productVersion}`} />
           <div className={styles.formLayout}>
             <div className={styles.formSections}>
               <section className={styles.card} aria-labelledby="detail-customer">

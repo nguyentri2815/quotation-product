@@ -11,15 +11,16 @@ export function QuotationList() {
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [skipped, setSkipped] = useState(0)
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     let active = true
     setLoading(true)
     setError('')
     quotationsApi
-      .list()
+      .listResult()
       .then((data) => {
-        if (active) setQuotations(data)
+        if (active) { setQuotations(data.quotations); setSkipped(data.skipped) }
       })
       .catch((reason: unknown) => {
         if (active) setError(reason instanceof Error ? reason.message : 'Không tải được danh sách.')
@@ -40,7 +41,7 @@ export function QuotationList() {
           <h1>Bản chào bảo hiểm</h1>
           <p className={styles.subtitle}>Tạo và theo dõi bản chào bảo hiểm tài sản của bạn.</p>
         </div>
-        <Link className={styles.primaryButton} to="/quotations/new">
+        <Link className={styles.primaryButton} to="/products">
           <Icon name="plus" size={19} />
           Tạo bản chào
         </Link>
@@ -50,9 +51,10 @@ export function QuotationList() {
           <Icon name="file" />
           <h2 id="list-heading">Danh sách bản chào</h2>
           {!loading && !error && <span className={styles.count}>{quotations.length}</span>}
-          <span className={styles.cardHint}>Sản phẩm · Tài sản cơ bản</span>
+          <span className={styles.cardHint}>Tài sản · Normal</span>
         </div>
         <AsyncMessage loading={loading} error={error} retry={() => setAttempt(attempt + 1)} />
+        {!loading && !error && skipped > 0 && <p role="status" className={styles.errorBox}>Có {skipped} bản chào không đọc được. Các bản hợp lệ vẫn hiển thị; dữ liệu gốc được giữ nguyên.</p>}
         {!loading &&
           !error &&
           (quotations.length ? (
@@ -85,7 +87,7 @@ export function QuotationList() {
                         <Link className={styles.numberLink} to={`/quotations/${quotation.id}`}>
                           {quotation.number}
                         </Link>
-                        <span className={styles.cellSub}>Thông thường</span>
+                        <span className={styles.cellSub}>{quotation.productSnapshot.name} · v{quotation.productVersion}</span>
                       </td>
                       <td className={styles.customerCell}>{quotation.customer.name}</td>
                       <td>{quotation.asset.name}</td>
@@ -108,7 +110,7 @@ export function QuotationList() {
               </span>
               <h3>Chưa có bản chào nào</h3>
               <p>Tạo bản chào đầu tiên cho khách hàng và tài sản của bạn.</p>
-              <Link className={styles.primaryButton} to="/quotations/new">
+              <Link className={styles.primaryButton} to="/products">
                 <Icon name="plus" size={18} />
                 Tạo bản chào
               </Link>

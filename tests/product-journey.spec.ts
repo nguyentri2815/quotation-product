@@ -1,0 +1,38 @@
+import { expect,test } from '@playwright/test'
+import type { Page } from '@playwright/test'
+async function change(page:Page,name:string,confirm=true){await page.getByRole('button',{name:'Đổi sản phẩm',exact:true}).click();const panel=page.getByRole('dialog',{name:'Đổi sản phẩm',exact:true});await panel.getByRole('radio',{name:new RegExp(name)}).check();await panel.getByRole('button',{name:confirm?'Xác nhận đổi sản phẩm':'Giữ sản phẩm hiện tại',exact:true}).click()}
+const premium=(page:Page)=>page.locator('[aria-labelledby="premium-heading"]')
+test('chọn trước form; panel hủy giữ phí/draft, xác nhận mới đổi; A/B lưu và mở lại',async({page})=>{
+  const posts:string[]=[];page.on('request',r=>{if(r.method()==='POST')posts.push(r.url())})
+  await page.goto('/quotations/new');await expect(page).toHaveURL(/\/products$/)
+  await expect(page.getByRole('heading',{name:'Chọn sản phẩm',exact:true})).toBeVisible()
+  await expect(page.locator('main')).not.toContainText(/Chặng|checkpoint|source|giữ hành trình/)
+  await page.getByRole('link',{name:'Tạo bản chào Tài sản cơ bản',exact:true}).click()
+  await page.getByRole('button',{name:'Điền dữ liệu mẫu'}).click()
+  await page.locator('#customerName').fill('Bản chào A B review')
+  const draft=await page.locator('form input:not([type="radio"]),form textarea').evaluateAll(els=>Object.fromEntries(els.map(el=>[(el as HTMLInputElement).id,(el as HTMLInputElement).value])))
+  await page.getByRole('button',{name:'Tính phí',exact:true}).click();await expect(premium(page)).toContainText('1.100.000')
+  await change(page,'Tài sản mở rộng',false);await expect(premium(page)).toContainText('1.100.000');await expect(page.getByRole('button',{name:'Lưu bản chào',exact:true})).toBeEnabled()
+  await change(page,'Tài sản mở rộng');await expect(premium(page)).toContainText('Cần tính lại phí');await expect(page.locator('#endDate-error')).toContainText('180')
+  expect(await page.locator('form input:not([type="radio"]),form textarea').evaluateAll(els=>Object.fromEntries(els.map(el=>[(el as HTMLInputElement).id,(el as HTMLInputElement).value])))).toEqual(draft)
+  await page.locator('form').evaluate(form=>form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));await expect(page.getByRole('alert')).toContainText('kiểm tra');expect(posts).toHaveLength(0)
+  const start=await page.locator('#startDate').inputValue();const end=new Date(Date.parse(start+'T00:00:00Z')+180*86400000).toISOString().slice(0,10)
+  await page.locator('#endDate').fill(end);await page.getByRole('button',{name:'Tính phí',exact:true}).click()
+  for(const text of ['EXTENDED_PROPERTY / v1','180 ngày','0,15%','739.726','73.973','813.699'])await expect(premium(page)).toContainText(text)
+  await page.getByRole('button',{name:'Lưu bản chào',exact:true}).dblclick();await expect(page.getByText('Đã lưu bản chào thành công.')).toBeVisible();expect(posts).toHaveLength(1)
+  await expect(page.locator('main')).toContainText('Tài sản mở rộng · v1');await page.reload();await expect(premium(page)).toContainText('813.699')
+  const record=await page.evaluate(()=>JSON.parse(localStorage.getItem('quotation-product.demo.v1')!).quotations.find((q:{customer:{name:string}})=>q.customer.name==='Bản chào A B review'))
+  expect(record).toMatchObject({product:'EXTENDED_PROPERTY',productVersion:1,schemaVersion:2,productSnapshot:{annualRate:.0015,taxRate:.1},premium:{total:813699}})
+  await page.getByRole('link',{name:'Về danh sách',exact:true}).click();await expect(page.locator('table')).toContainText('Tài sản mở rộng · v1');await page.getByRole('link',{name:record.number,exact:true}).click();await expect(premium(page)).toContainText('813.699')
+})
+test('A/B/A và sửa tiền/ngày vô hiệu phí; không ép hợp lệ; mã URL lạ không thành A',async({page})=>{
+  await page.goto('/quotations/new?product=UNKNOWN');await expect(page.getByRole('alert')).toContainText('Không tìm thấy sản phẩm');await expect(page.locator('#customerName')).toHaveCount(0)
+  await page.goto('/quotations/new?product=BASIC_PROPERTY');await page.getByRole('button',{name:'Điền dữ liệu mẫu'}).click();await page.getByRole('button',{name:'Tính phí',exact:true}).click()
+  await change(page,'Tài sản mở rộng');await page.locator('#sumInsured').fill('1000000');await expect(page.locator('#sumInsured-error')).toContainText('10.000.000');await change(page,'Tài sản cơ bản');await expect(page.locator('#sumInsured-error')).toHaveCount(0);await expect(page.getByRole('button',{name:'Lưu bản chào',exact:true})).toBeDisabled()
+  await page.getByRole('button',{name:'Tính phí',exact:true}).click();await page.locator('#sumInsured').fill('2000000');await expect(premium(page)).toContainText('Cần tính lại phí')
+})
+test('mobile và bàn phím: chọn sản phẩm, panel Escape và xác nhận',async({page})=>{
+  await page.setViewportSize({width:390,height:900});await page.goto('/products');await page.getByRole('link',{name:'Tạo bản chào Tài sản mở rộng',exact:true}).click();await expect(page.locator('#product-info')).toContainText('Tài sản mở rộng')
+  const button=page.getByRole('button',{name:'Đổi sản phẩm',exact:true});await button.focus();await page.keyboard.press('Enter');await expect(page.getByRole('dialog')).toBeVisible();await page.keyboard.press('Escape');await expect(button).toBeFocused();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await page.screenshot({path:'test-results/product-redesign-mobile.png',fullPage:true})
+})

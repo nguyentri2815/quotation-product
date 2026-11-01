@@ -12,7 +12,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request(path: string, options?: RequestInit): Promise<unknown> {
+async function request(path: string, options?: RequestInit, onResponse?: (response:Response) => void): Promise<unknown> {
   let response: Response
   try {
     response = await fetch(path, { ...options, signal: AbortSignal.timeout(12_000) })
@@ -59,6 +59,7 @@ async function request(path: string, options?: RequestInit): Promise<unknown> {
     }
     throw new ApiError(message, response.status, errors)
   }
+  onResponse?.(response)
   return body
 }
 
@@ -70,9 +71,14 @@ function requireQuotation(value: unknown): Quotation {
 
 export const quotationsApi = {
   async list(): Promise<Quotation[]> {
-    const body = await request('/api/quotations')
+    return (await quotationsApi.listResult()).quotations
+  },
+  async listResult(): Promise<{quotations:Quotation[]; skipped:number}> {
+    let skipped = 0
+    const body = await request('/api/quotations', undefined, response => { skipped = Number(response.headers.get('X-Quotation-Skipped')) || 0 })
     if (!Array.isArray(body)) throw new ApiError('Danh sách trả về không hợp lệ.', 502)
-    return body.map(requireQuotation)
+    const parsed = body.map(parseQuotation)
+    return { quotations:parsed.filter((item): item is Quotation => item !== null), skipped:skipped + parsed.filter(item => item === null).length }
   },
   async get(id: string): Promise<Quotation> {
     return requireQuotation(await request(`/api/quotations/${encodeURIComponent(id)}`))

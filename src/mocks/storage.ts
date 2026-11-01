@@ -1,7 +1,9 @@
+import { getPropertyProduct, productTerms } from '../quotation/products'
 import {
   calculatePremium,
   isRecord,
   parseQuotation,
+  parseQuotationInput,
   validateAndBuildInput,
 } from '../quotation/rules'
 import type { Quotation, QuotationInput } from '../quotation/types'
@@ -25,15 +27,17 @@ function makeSeed(): Quotation[] {
   const now = new Date()
   return [first, second].map((input, index) => ({
     ...input,
+    schemaVersion:2,
+    productSnapshot:productTerms(getPropertyProduct(input.product,input.productVersion)),
     id: `demo-seed-${index + 1}`,
     number: `Q-${now.getFullYear()}-${String(index + 1).padStart(6, '0')}`,
     createdAt: new Date(now.getTime() - (2 - index) * 3_600_000).toISOString(),
     status: 'CREATED',
-    premium: calculatePremium(input.asset.sumInsured, input.period.startDate, input.period.endDate),
+    premium: calculatePremium(input.asset.sumInsured, input.period.startDate, input.period.endDate, input.product),
   }))
 }
 
-function persist(quotations: Quotation[]): void {
+function persist(quotations: unknown[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, quotations }))
   } catch {
@@ -43,7 +47,7 @@ function persist(quotations: Quotation[]): void {
   }
 }
 
-export function readQuotations(): Quotation[] {
+function readEnvelope(): unknown[] {
   let raw: string | null
   try {
     raw = localStorage.getItem(STORAGE_KEY)
@@ -64,33 +68,35 @@ export function readQuotations(): Quotation[] {
   }
   if (!isRecord(stored) || stored.version !== 1 || !Array.isArray(stored.quotations))
     throw new Error('Dữ liệu demo không đúng phiên bản. Dữ liệu cũ được giữ nguyên.')
-  const quotations = stored.quotations.map((value: unknown) => parseQuotation(value))
-  if (quotations.some((quotation) => quotation === null))
-    throw new Error('Có bản chào đã lưu không hợp lệ. Dữ liệu cũ được giữ nguyên.')
-  return quotations.filter((quotation): quotation is Quotation => quotation !== null)
+  return stored.quotations
 }
 
+export function readQuotationReport(): { quotations:Quotation[]; skipped:number } {
+  const raw = readEnvelope()
+  const parsed = raw.map(value => parseQuotation(value))
+  return { quotations:parsed.filter((value): value is Quotation => value !== null), skipped:parsed.filter(value => value === null).length }
+}
+export function readQuotations(): Quotation[] { return readQuotationReport().quotations }
+
 export function createQuotation(input: QuotationInput): Quotation {
-  // A single synchronous read/write prevents overlapping submissions in this tab.
-  const quotations = readQuotations()
-  const now = new Date()
-  const year = now.getFullYear()
-  const sequence =
-    quotations.reduce(
-      (max, quotation) =>
-        quotation.number.startsWith(`Q-${year}-`)
-          ? Math.max(max, Number(quotation.number.split('-')[2]))
-          : max,
-      0,
-    ) + 1
+  // Validate again at the mock boundary, independent of UI selection or client totals.
+  const parsed = parseQuotationInput(input)
+  if (!parsed.success) throw new Error(parsed.message)
+  input = parsed.data
+  const raw = readEnvelope()
+  const now = new Date(), year = now.getFullYear()
+  const sequence = raw.reduce<number>((max, item) => {
+    if (!isRecord(item) || typeof item.number !== 'string' || !new RegExp('^Q-' + year + '-[0-9]+$').test(item.number)) return max
+    return Math.max(max, Number(item.number.split('-')[2]))
+  }, 0) + 1
   const quotation: Quotation = {
-    ...input,
-    id: crypto.randomUUID(),
-    number: `Q-${year}-${String(sequence).padStart(6, '0')}`,
-    createdAt: now.toISOString(),
-    status: 'CREATED',
-    premium: calculatePremium(input.asset.sumInsured, input.period.startDate, input.period.endDate),
+    ...input, schemaVersion:2,
+    productSnapshot:productTerms(getPropertyProduct(input.product,input.productVersion)),
+    id:crypto.randomUUID(), number:'Q-' + year + '-' + String(sequence).padStart(6,'0'),
+    createdAt:now.toISOString(), status:'CREATED',
+    premium:calculatePremium(input.asset.sumInsured,input.period.startDate,input.period.endDate,input.product),
   }
-  persist([...quotations, quotation])
+  // Preserve malformed rows too. A read never migrates or rewrites old records.
+  persist([...raw,quotation])
   return quotation
 }

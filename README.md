@@ -1,6 +1,14 @@
-# Quotation Product · Preview Chặng 1
+# Quotation Product · Bản chào tài sản
 
-Ứng dụng tiếng Việt: danh sách → tạo bản chào → tính phí → lưu qua mock API → chi tiết. Chỉ hỗ trợ bản chào Normal, Tài sản cơ bản, một khách hàng, một tài sản, VND và thanh toán một kỳ.
+Ứng dụng tiếng Việt cho người lập bản chào: **chọn sản phẩm → nhập dữ liệu → tính phí → lưu → xem lại**. Cả Tài sản cơ bản (A) và Tài sản mở rộng (B) đều hoàn chỉnh qua mock API. Normal / Tài sản / một khách hàng / một tài sản / VND / một kỳ thanh toán. Môi trường: Dữ liệu mô phỏng.
+
+## Bản review hiện hành
+
+Mở [Chọn sản phẩm](http://localhost:3180/products). A: Điền mẫu → Tính phí → **1.100.000 VND** →Lưu →reload. B: giữ mẫu365 ngày để thấy lỗi; đặt Ngày kết thúc = Ngày bắt đầu +180 ngày lịch →thuần739.726, thuế73.973, tổng**813.699 VND** →Lưu →mở lại. B1 triệu lỗi đúng trường tiền. Đổi sản phẩm mở panel: hủy giữ dữ liệu/phí, xác nhận mới đổi; giữ draft, không ép hợp lệ và bỏ phí cũ. Giới hạn cạnh trường, thông tin bổ sung qua Chi tiết sản phẩm.
+
+Đây là quy tắc mô phỏng phục vụ học tập, không phải biểu phí bảo hiểm thực tế. A: 1 triệu–100 tỷ, 1–365 ngày, 0,1% năm; B: 10 triệu–50 tỷ, 1–180 ngày, 0,15% năm; thuế10%. Catalog là nguồn của gợi ý, validation và công thức. Receipt phí tạm giữ mã/phiên bản/tiền/hai ngày; guard lưu chỉ nhận phí còn khớp. Input có code/version; mock tự tra rule/tính lại, bỏ qua tên/rate/tổng client gửi. Record lưu snapshot biểu phí và kết quả đã áp dụng; GET không báo giá lại theo catalog hiện tại.
+
+`quotation/products.ts` chứa catalog/version và điều khoản A gốc; `quotation/records.ts` đọc snapshot lịch sử/adapter legacy; `SelectProduct` chọn trước form; CreateQuotation sở hữu draft/phí; ProductInformation trình bày ngữ cảnh/panel; PremiumSummary chỉ hiển thị. Nội dung học nằm ở [Workshop Chặng2](http://localhost:3181/?stage=2&version=4#checkpoint=s2-r4-00), [Hành trình phát triển](http://localhost:3181/?stage=2&version=4&screen=evolution#requirement=history) và [bàn giao](../quotation-workshop/docs/CHANG-2-REDESIGN.md). Chưa commit/push.
 
 ## Cài đặt và chạy
 
@@ -41,9 +49,9 @@ Kiểm thử trình duyệt dùng Chrome đã cài, chạy khi preview đang m�
 
 Đây là quy tắc bài thực hành, không phải biểu phí bảo hiểm thực tế.
 
-- Số ngày = ngày kết thúc − ngày bắt đầu, theo ngày lịch; từ 1 đến 365 ngày.
-- Phí trước thuế = `Math.round(số tiền bảo hiểm × 0.001 × số ngày / 365)`.
-- Thuế = `Math.round(phí trước thuế × 0.1)`.
+- Số ngày = ngày kết thúc − ngày bắt đầu, theo ngày lịch; giới hạn A/B lấy từ catalog.
+- Phí trước thuế = `Math.round(số tiền bảo hiểm × product.annualRate × số ngày / 365)`.
+- Thuế = `Math.round(phí trước thuế × product.taxRate)`.
 - Tổng phí = phí trước thuế + thuế; một kỳ thanh toán bằng tổng phí.
 
 Ví dụ: 1.000.000.000 VND, 365 ngày → phí 1.000.000 + thuế 100.000 = **1.100.000 VND**. Ngày được đổi thành mốc UTC nửa đêm chỉ để trừ ngày, tránh sai lệch múi giờ/DST. Không chặn ngày bắt đầu trong quá khứ.
@@ -73,7 +81,7 @@ Dữ liệu chỉ ở trình duyệt và origin đang dùng (gồm hostname, por
 
 Route chi tiết `/quotations/:id` hỗ trợ reload trên Vite. Nếu tự phục vụ `dist/` bằng máy chủ khác, cần fallback route SPA về `index.html`. `public/mockServiceWorker.js` được tạo bằng `npx.cmd msw init public --save`; không sửa tay file này.
 
-Chưa có đăng nhập, lưu nháp, chỉnh sửa sau lưu hoặc các chức năng Chặng 2. Phòng thực hành Chặng 1 nằm ở repo `../quotation-workshop`, preview http://localhost:3181. Hai ứng dụng dùng cùng bảng màu và typography; dữ liệu demo tách biệt.
+Chưa có đăng nhập, lưu nháp hoặc chỉnh sửa sau lưu. Dữ liệu A cũ đúng shape được adapter hẹp đọc trong bộ nhớ; record sai bị bỏ khỏi phần hiển thị và báo số lượng, không bị xóa hay seed lại. JSON/envelope không đọc được vẫn báo lỗi, giữ byte gốc. Phòng thực hành nằm ở repo `../quotation-workshop`, preview http://localhost:3181; snapshot lịch sử và dữ liệu hai ứng dụng tách biệt.
 
 ## Chuyển máy và tiếp tục review
 
@@ -84,4 +92,11 @@ Clone [quotation-workshop](https://github.com/nguyentri2815/quotation-workshop) 
 - [Cây phụ thuộc bước 3.4](http://localhost:3181/#journey=2&step=3&sub=3&tab=build&buildView=dependencies&dependencyNode=props).
 - [Cây phụ thuộc bước 3.5](http://localhost:3181/#journey=2&step=3&sub=4&tab=build&buildView=dependencies&dependencyNode=calculate).
 
-Đây là bản bàn giao Chặng 1; chưa bắt đầu chặng tiếp theo.
+Product hiện có đầy đủ luồng A/B và tương thích A gốc. [Preview2](../quotation-workshop/docs/CHANG-2-PREVIEW-2.md) là biên bản lịch sử của snapshot cũ; giới hạn khóa lưu B chỉ áp dụng mốc đó. [Bản review hiện tại](../quotation-workshop/docs/CHANG-2-REDESIGN.md). Chưa triển khai Chặng3, chưa commit/push.
+
+
+## Quy trình Product và Workshop
+
+Từ 01/11/2026: triển khai Product của chặng trước → người dùng review và đồng ý Product → ghim source thực tế (commit nền, working tree và hash) → mới thiết kế checkpoint, bài học, mapping và Chạy thử trong Workshop. Khi thiết kế Product đổi, rà mọi bài học bị tác động, không chỉ checkpoint cuối. Test đạt/báo cáo hoàn thành không có nghĩa người dùng đã duyệt Product.
+
+Trong lượt điều chỉnh Chặng2 hiện tại, dùng Product hiện hành làm đích theo yêu cầu người dùng, không mở rộng nghiệp vụ. [Quy trình chi tiết](../quotation-workshop/docs/PRODUCT-WORKSHOP-WORKFLOW.md) · [Revision3 và bản ghim](../quotation-workshop/docs/CHANG-2-REVISION-3.md).

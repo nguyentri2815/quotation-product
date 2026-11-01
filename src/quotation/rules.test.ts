@@ -92,7 +92,7 @@ describe('Quy tắc bản chào Chặng 1', () => {
     })
   })
   it('chỉ những đầu vào phí làm mất hiệu lực kết quả', () => {
-    const draft = sampleDraft()
+    const draft = { ...sampleDraft(), startDate:'2026-01-01', endDate:'2027-01-01' }
     for (const update of [
       { sumInsured: '2000000000' },
       { startDate: '2026-11-01' },

@@ -1,14 +1,18 @@
-import type { Premium } from '../quotation/types'
-import { formatMoney } from '../quotation/format'
+import type { Premium, CalculatedPremium } from '../quotation/types'
+import { formatMoney, formatRate } from '../quotation/format'
 import { Icon } from './Icon'
 import styles from './ui.module.css'
 
 export function PremiumSummary({
   premium,
   stale = false,
+  annualRate = 0.001,
+  taxRate = 0.1,
 }: {
-  premium: Premium | null
+  premium: Premium | CalculatedPremium | null
   stale?: boolean
+  annualRate?: number
+  taxRate?: number
 }) {
   return (
     <section className={`${styles.card} ${styles.premiumCard}`} aria-labelledby="premium-heading">
@@ -24,6 +28,7 @@ export function PremiumSummary({
             <span className={styles.calculated}>
               <Icon name="check" size={15} /> Đã tính phí
             </span>
+            {'productCode' in premium && <p data-priced-product={premium.productCode}>{premium.productName} · {premium.productCode} / v{premium.productVersion}<br />{premium.inputs.startDate} → {premium.inputs.endDate} · {formatMoney(Number(premium.inputs.sumInsured))}</p>}
             <dl className={styles.premiumRows}>
               <div>
                 <dt>Thời hạn bảo hiểm</dt>
@@ -31,14 +36,14 @@ export function PremiumSummary({
               </div>
               <div>
                 <dt>Tỷ lệ phí năm</dt>
-                <dd>0,1%</dd>
+                <dd>{formatRate(premium.annualRate)}</dd>
               </div>
               <div>
                 <dt>Phí trước thuế</dt>
                 <dd>{formatMoney(premium.net)}</dd>
               </div>
               <div>
-                <dt>Thuế (10%)</dt>
+                <dt>Thuế ({formatRate(premium.taxRate)})</dt>
                 <dd>{formatMoney(premium.tax)}</dd>
               </div>
             </dl>
@@ -59,11 +64,11 @@ export function PremiumSummary({
             <dl className={styles.premiumRows}>
               <div>
                 <dt>Tỷ lệ phí năm</dt>
-                <dd>0,1%</dd>
+                <dd>{formatRate(annualRate)}</dd>
               </div>
               <div>
                 <dt>Thuế suất</dt>
-                <dd>10%</dd>
+                <dd>{formatRate(taxRate)}</dd>
               </div>
             </dl>
             <div className={stale ? styles.stale : styles.calculationEmpty}>
@@ -71,7 +76,7 @@ export function PremiumSummary({
               <strong>{stale ? 'Cần tính lại phí' : 'Chưa có kết quả phí'}</strong>
               <p>
                 {stale
-                  ? 'Số tiền hoặc thời hạn đã thay đổi. Vui lòng tính lại phí trước khi lưu.'
+                  ? 'Sản phẩm, số tiền hoặc thời hạn đã thay đổi. Vui lòng tính lại phí trước khi lưu.'
                   : 'Nhập thông tin và chọn “Tính phí” để xem tổng phí bảo hiểm.'}
               </p>
             </div>

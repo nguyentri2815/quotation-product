@@ -3,16 +3,19 @@ import type { ChangeEvent, ReactNode } from 'react'
 import { Link, useBlocker, useNavigate } from 'react-router-dom'
 import { ApiError, quotationsApi } from '../api/quotations'
 import {
-  calculatePremium,
+  calculateDraftPremium,
+  premiumMatchesDraft,
   pricingInputsChanged,
   validateAndBuildInput,
   validateDraft,
 } from '../quotation/rules'
-import type { FieldErrors, Premium, QuotationDraft } from '../quotation/types'
+import type { FieldErrors, CalculatedPremium, QuotationDraft } from '../quotation/types'
 import { emptyDraft, sampleDraft } from '../quotation/types'
 import { formatMoney } from '../quotation/format'
-import { FixedInformation } from '../components/FixedInformation'
 import { PremiumSummary } from '../components/PremiumSummary'
+import { ProductInformation } from '../components/ProductInformation'
+import { propertyProducts } from '../quotation/products'
+import type { PropertyProductCode } from '../quotation/products'
 import { Icon } from '../components/Icon'
 import styles from '../components/ui.module.css'
 
@@ -60,10 +63,14 @@ function Field({
   )
 }
 
-export function CreateQuotation() {
+export function CreateQuotation({ initialCode = 'BASIC_PROPERTY' }: { initialCode?: PropertyProductCode }) {
+  const [productCode, setProductCode] = useState<PropertyProductCode>(initialCode)
+  const product = propertyProducts.find(item => item.code === productCode)!
   const [draft, setDraft] = useState<QuotationDraft>({ ...emptyDraft })
   const [errors, setErrors] = useState<FieldErrors>({})
-  const [premium, setPremium] = useState<Premium | null>(null)
+  const [premium, setPremium] = useState<CalculatedPremium | null>(null)
+  const [validated, setValidated] = useState(false)
+  const currentPremium = premiumMatchesDraft(premium, draft, productCode) ? premium : null
   const [calculatedBefore, setCalculatedBefore] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -95,8 +102,19 @@ export function CreateQuotation() {
   function updateDraft(next: QuotationDraft) {
     if (pricingInputsChanged(draft, next)) setPremium(null)
     setDraft(next)
+    if (validated) setErrors(validateDraft(next, productCode))
     setMessage('')
     setNotice('')
+  }
+
+  function changeProduct(code: string) {
+    const next = propertyProducts.find(item => item.code === code)
+    if (!next || saving || next.code === productCode) return
+    setProductCode(next.code)
+    setPremium(null)
+    if (validated) setErrors(validateDraft(draft, next.code))
+    setMessage('')
+    setNotice('Đã đổi sản phẩm. Cần tính lại phí trước khi lưu.')
   }
 
   function inputProps(key: keyof QuotationDraft) {
@@ -111,14 +129,18 @@ export function CreateQuotation() {
           .join(' ') || undefined,
       onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         updateDraft({ ...draft, [key]: event.target.value })
-        setErrors((previous) => ({ ...previous, [key]: undefined }))
+        if (!validated) setErrors((previous) => ({ ...previous, [key]: undefined }))
       },
-      onBlur: () => setErrors((previous) => ({ ...previous, [key]: validateDraft(draft)[key] })),
+      onBlur: () => {
+        setValidated(true)
+        setErrors((previous) => ({ ...previous, [key]: validateDraft(draft, productCode)[key] }))
+      },
     }
   }
 
   function validatedInput() {
-    const result = validateAndBuildInput(draft)
+    setValidated(true)
+    const result = validateAndBuildInput(draft, productCode)
     if (!result.success) {
       setErrors(result.errors)
       setMessage(result.message)
@@ -133,11 +155,10 @@ export function CreateQuotation() {
   }
 
   function calculate() {
+    if (saving) return
     const input = validatedInput()
     if (!input) return
-    setPremium(
-      calculatePremium(input.asset.sumInsured, input.period.startDate, input.period.endDate),
-    )
+    setPremium(calculateDraftPremium(draft, productCode))
     setCalculatedBefore(true)
     setNotice('Đã tính phí. Bạn có thể lưu bản chào.')
   }
@@ -146,7 +167,7 @@ export function CreateQuotation() {
     if (saveInFlight.current) return
     const input = validatedInput()
     if (!input) return
-    if (!premium) {
+    if (!currentPremium) {
       setMessage('Vui lòng tính phí với số tiền và thời hạn hiện tại trước khi lưu.')
       return
     }
@@ -182,7 +203,6 @@ export function CreateQuotation() {
           </p>
         </div>
       </div>
-      <FixedInformation />
       <form
         ref={formRef}
         noValidate
@@ -194,6 +214,7 @@ export function CreateQuotation() {
       >
         <fieldset className={styles.formFieldset} disabled={saving}>
           <legend className={styles.srOnly}>Thông tin tạo bản chào</legend>
+          <ProductInformation product={product} onProductChange={changeProduct} disabled={saving} />
           <div className={styles.formLayout}>
             <div className={styles.formSections}>
               <section className={styles.card} aria-labelledby="customer-heading">
@@ -258,12 +279,7 @@ export function CreateQuotation() {
                     id="sumInsured"
                     label="Số tiền bảo hiểm"
                     error={errors.sumInsured}
-                    hint={
-                      /^\d+$/.test(draft.sumInsured) &&
-                      Number.isSafeInteger(Number(draft.sumInsured))
-                        ? formatMoney(Number(draft.sumInsured))
-                        : 'Từ 1.000.000 đến 100.000.000.000 VND.'
-                    }
+                    hint={`Từ ${formatMoney(product.minSumInsured)} đến ${formatMoney(product.maxSumInsured)}.`}
                     wide
                   >
                     <div className={styles.inputWithUnit}>
@@ -282,7 +298,7 @@ export function CreateQuotation() {
                 <div className={styles.cardHeading}>
                   <span className={styles.sectionNumber}>03</span>
                   <h2 id="period-heading">Thời hạn bảo hiểm</h2>
-                  <span className={styles.cardHint}>Tối đa 365 ngày</span>
+                  <span className={styles.cardHint}>{product.minDays}–{product.maxDays} ngày</span>
                 </div>
                 <div className={styles.fields}>
                   <Field id="startDate" label="Ngày bắt đầu" error={errors.startDate}>
@@ -295,7 +311,7 @@ export function CreateQuotation() {
               </section>
             </div>
             <aside className={styles.premiumAside}>
-              <PremiumSummary premium={premium} stale={calculatedBefore && !premium} />
+              <PremiumSummary premium={currentPremium} stale={calculatedBefore && !currentPremium} annualRate={product.annualRate} taxRate={product.taxRate} />
               <div className={styles.sampleCard}>
                 <Icon name="spark" />
                 <div>
@@ -333,10 +349,10 @@ export function CreateQuotation() {
               Hủy
             </button>
             <div className={styles.actionGroup}>
-              <button type="button" className={styles.secondaryButton} onClick={calculate}>
+              <button type="button" className={styles.secondaryButton} onClick={calculate} disabled={saving}>
                 Tính phí
               </button>
-              <button type="submit" className={styles.primaryButton} disabled={saving || !premium}>
+              <button type="submit" className={styles.primaryButton} disabled={saving || !currentPremium}>
                 {saving ? (
                   <>
                     <span className={styles.spinner} />

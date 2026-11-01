@@ -1,6 +1,6 @@
 import styles from './ui.module.css'
 
-export function FixedInformation() {
+export function FixedInformation({ productName = 'Tài sản cơ bản' }: { productName?: string }) {
   return (
     <dl className={styles.fixedInfo}>
       <div>
@@ -15,7 +15,7 @@ export function FixedInformation() {
       </div>
       <div>
         <dt>Sản phẩm</dt>
-        <dd>Tài sản cơ bản</dd>
+        <dd>{productName}</dd>
       </div>
       <div>
         <dt>Tiền tệ</dt>

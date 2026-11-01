@@ -1,7 +1,9 @@
+import type { PropertyProductCode, ProductTerms } from './products'
 export interface QuotationInput {
   type: 'NORMAL'
   line: 'PROPERTY'
-  product: 'BASIC_PROPERTY'
+  product: PropertyProductCode
+  productVersion: number
   currency: 'VND'
   customer: { name: string; phone: string; email: string }
   asset: { name: string; address: string; sumInsured: number }
@@ -19,6 +21,8 @@ export interface Premium {
 }
 
 export interface Quotation extends QuotationInput {
+  schemaVersion: 2
+  productSnapshot: ProductTerms
   id: string
   number: string
   createdAt: string
@@ -38,8 +42,17 @@ export interface QuotationDraft {
 }
 
 export type FieldErrors = Partial<Record<keyof QuotationDraft, string>>
-export type ValidationResult =
-  | { success: true; data: QuotationInput }
+export type ProductInput = QuotationInput
+
+export interface CalculatedPremium extends Premium {
+  productCode: PropertyProductCode
+  productVersion: number
+  productName: string
+  inputs: Pick<QuotationDraft, 'sumInsured' | 'startDate' | 'endDate'>
+}
+
+export type ValidationResult<Input = QuotationInput> =
+  | { success: true; data: Input }
   | { success: false; message: string; errors: FieldErrors }
 
 export const emptyDraft: QuotationDraft = {

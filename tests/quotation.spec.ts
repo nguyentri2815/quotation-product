@@ -8,6 +8,7 @@ test('luồng danh sách → tạo → tính lại → lưu → chi tiết → r
   await expect(page.locator('tbody tr')).toHaveCount(2)
   await page.screenshot({ path: 'test-results/list-desktop.png', fullPage: true })
   await page.getByRole('link', { name: 'Tạo bản chào', exact: true }).click()
+  await page.getByRole('link', { name: 'Tạo bản chào Tài sản cơ bản', exact: true }).click()
   await page.getByRole('button', { name: 'Điền dữ liệu mẫu' }).click()
   await expect(page.getByRole('button', { name: 'Lưu bản chào' })).toBeDisabled()
   await page.getByRole('button', { name: 'Tính phí', exact: true }).click()
@@ -47,6 +48,7 @@ test('luồng danh sách → tạo → tính lại → lưu → chi tiết → r
 test('lỗi gắn với trường và xác nhận bỏ dữ liệu qua Hủy, Back, reload', async ({ page }) => {
   await page.goto('/quotations')
   await page.getByRole('link', { name: 'Tạo bản chào', exact: true }).click()
+  await page.getByRole('link', { name: 'Tạo bản chào Tài sản cơ bản', exact: true }).click()
   await page.getByRole('button', { name: 'Tính phí', exact: true }).click()
   await expect(page.getByText('Vui lòng nhập tên khách hàng.')).toBeVisible()
   await expect(page.getByLabel('Tên khách hàng', { exact: false })).toBeFocused()
@@ -81,7 +83,7 @@ test('lỗi gắn với trường và xác nhận bỏ dữ liệu qua Hủy, Ba
 })
 
 test('lưu thất bại giữ biểu mẫu và cho thử lại; danh sách rỗng không tự seed', async ({ page }) => {
-  await page.goto('/quotations/new')
+  await page.goto('/quotations/new?product=BASIC_PROPERTY')
   await page.getByRole('button', { name: 'Điền dữ liệu mẫu' }).click()
   await page.getByRole('button', { name: 'Tính phí', exact: true }).click()
   await page.evaluate(() => {
@@ -122,7 +124,7 @@ test('lưu thất bại giữ biểu mẫu và cho thử lại; danh sách rỗn
 
 test('màn hình nhỏ dùng được và không tràn ngang trang', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/quotations/new')
+  await page.goto('/quotations/new?product=BASIC_PROPERTY')
   await page.getByRole('button', { name: 'Điền dữ liệu mẫu' }).click()
   await page.getByRole('button', { name: 'Tính phí', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Lưu bản chào' })).toBeEnabled()

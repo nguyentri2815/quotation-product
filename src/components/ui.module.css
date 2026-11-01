@@ -1,3 +1,15 @@
+.productCard { margin-bottom: 24px; }
+.productCard .cardHeading { flex-wrap: wrap; gap: 16px; justify-content: space-between; }
+.productPicker { display: grid; gap: 5px; font-size: 13px; font-weight: 600; }
+.productPicker select { max-width: 100%; border: 1px solid var(--line); background: white; border-radius: 6px; padding: 9px 12px; font: inherit; }
+.productBody { padding: 18px 22px; }
+.productBody p { font-size: 13px; line-height: 1.6; }
+.productVersion { display: block; font-size: 11px; color: var(--muted); margin-top: 4px; overflow-wrap: anywhere; }
+.productRules { display: flex; flex-wrap: wrap; gap: 14px 28px; margin: 16px 0; }
+.productRules dt { font-size: 12px; color: var(--muted); }
+.productRules dd { margin: 5px 0 0; font-size: 13px; font-weight: 600; }
+.demoNote { color: var(--muted); margin-bottom: 0; }
+.productActionNote { padding: 12px 16px; background: #fff8e7; border: 1px solid #e8ce88; border-radius: 7px; font-size: 13px; line-height: 1.6; }
 .app {
   min-height: 100vh;
 }
@@ -1064,3 +1076,13 @@
     margin-top: 8px;
   }
 }
+
+.productGrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; max-width:960px; }
+.productGrid > article { padding:24px; display:flex; flex-direction:column; align-items:start; gap:16px; }
+.productGrid h2,.productGrid p { margin:0; }.productGrid p { flex:1; line-height:1.7; color:#596b80; }
+.productContext { display:flex; align-items:start; justify-content:space-between; gap:20px; padding:18px 22px; margin-bottom:22px; border:1px solid #dce5ef; border-radius:10px; background:white; }
+.productContext strong { font-size:17px; }.productContext p { margin:6px 0 0; line-height:1.6; }.productContext p span { margin:0 7px; color:#94a3b8; }
+.contextActions { display:flex; align-items:start; gap:20px; }.productDetails { max-width:330px; font-size:13px; }.productDetails summary { cursor:pointer; color:#036b91; font-weight:600; padding:2px; }.productDetails dd { margin:3px 0 10px; }
+.productChoices { border:0; padding:0; margin:20px 0; display:grid; gap:12px; }.productChoices label { display:flex; align-items:start; gap:12px; padding:16px; border:1px solid #b8cadb; border-radius:8px; cursor:pointer; }
+.productChoices label:has(input:checked) { border-color:#047da5; background:#f0faff; }.productChoices small { display:block; margin-top:6px; line-height:1.5; }.productChoices input { width:18px; height:18px; flex:none; }
+@media(max-width:700px) { .productGrid { grid-template-columns:1fr; }.productContext { flex-direction:column; padding:16px; gap:14px; }.contextActions { flex-wrap:wrap; }.productChoices label { padding:12px; } }

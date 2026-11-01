@@ -1,6 +1,6 @@
 import { delay, http, HttpResponse } from 'msw'
 import { parseQuotationInput } from '../quotation/rules'
-import { createQuotation, readQuotations } from './storage'
+import { createQuotation, readQuotations, readQuotationReport } from './storage'
 
 function storageError(error: unknown) {
   return HttpResponse.json(
@@ -13,9 +13,8 @@ export const handlers = [
   http.get('/api/quotations', async () => {
     await delay(550)
     try {
-      return HttpResponse.json(
-        readQuotations().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-      )
+      const report = readQuotationReport()
+      return HttpResponse.json(report.quotations.sort((a, b) => b.createdAt.localeCompare(a.createdAt)), { headers:{ 'X-Quotation-Skipped':String(report.skipped) } })
     } catch (error) {
       return storageError(error)
     }
