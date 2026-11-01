@@ -8,11 +8,11 @@ Mở [Chọn sản phẩm](http://localhost:3180/products). A: Điền mẫu →
 
 Đây là quy tắc mô phỏng phục vụ học tập, không phải biểu phí bảo hiểm thực tế. A: 1 triệu–100 tỷ, 1–365 ngày, 0,1% năm; B: 10 triệu–50 tỷ, 1–180 ngày, 0,15% năm; thuế10%. Catalog là nguồn của gợi ý, validation và công thức. Receipt phí tạm giữ mã/phiên bản/tiền/hai ngày; guard lưu chỉ nhận phí còn khớp. Input có code/version; mock tự tra rule/tính lại, bỏ qua tên/rate/tổng client gửi. Record lưu snapshot biểu phí và kết quả đã áp dụng; GET không báo giá lại theo catalog hiện tại.
 
-`quotation/products.ts` chứa catalog/version và điều khoản A gốc; `quotation/records.ts` đọc snapshot lịch sử/adapter legacy; `SelectProduct` chọn trước form; CreateQuotation sở hữu draft/phí; ProductInformation trình bày ngữ cảnh/panel; PremiumSummary chỉ hiển thị. Nội dung học nằm ở [Workshop Chặng2](http://localhost:3181/?stage=2&version=4#checkpoint=s2-r4-00), [Hành trình phát triển](http://localhost:3181/?stage=2&version=4&screen=evolution#requirement=history) và [bàn giao](../quotation-workshop/docs/CHANG-2-REDESIGN.md). Chưa commit/push.
+`quotation/products.ts` chứa catalog/version và điều khoản A gốc; `quotation/records.ts` đọc snapshot lịch sử/adapter legacy; `SelectProduct` chọn trước form; CreateQuotation sở hữu draft/phí; ProductInformation trình bày ngữ cảnh/panel; PremiumSummary chỉ hiển thị. Nội dung học nằm ở [Workshop Chặng2](http://localhost:3181/?stage=2&version=4#checkpoint=s2-r4-00), [Hành trình phát triển](http://localhost:3181/?stage=2&version=4&screen=evolution#requirement=history) và [bàn giao hiện hành](../quotation-workshop/docs/CONTINUE-ON-OTHER-MACHINE.md). Product Chặng 2 được lưu trên main trong lượt bàn giao 01/11/2026; “Bản đồ của bước” là nhiệm vụ tiếp theo ở Workshop.
 
 ## Cài đặt và chạy
 
-Yêu cầu Node.js >= 22.12.0; đã xác nhận **Node 24.5.0 / npm 11.5.1** và Chrome trên Windows. Phiên bản thư viện được giữ trong `package-lock.json`. Nhánh bàn giao: `main`.
+Yêu cầu Node.js >= 22.12.0; lượt bàn giao 01/11/2026 xác nhận **Node 24.18.0 / npm 11.16.0** và Chrome trên Windows. Phiên bản thư viện được giữ trong `package-lock.json`. Nhánh bàn giao: `main`.
 
 ```powershell
 # Chạy từ thư mục cha bạn chọn trên máy mới; không cần đường dẫn Windows cũ.
@@ -92,7 +92,7 @@ Clone [quotation-workshop](https://github.com/nguyentri2815/quotation-workshop) 
 - [Cây phụ thuộc bước 3.4](http://localhost:3181/#journey=2&step=3&sub=3&tab=build&buildView=dependencies&dependencyNode=props).
 - [Cây phụ thuộc bước 3.5](http://localhost:3181/#journey=2&step=3&sub=4&tab=build&buildView=dependencies&dependencyNode=calculate).
 
-Product hiện có đầy đủ luồng A/B và tương thích A gốc. [Preview2](../quotation-workshop/docs/CHANG-2-PREVIEW-2.md) là biên bản lịch sử của snapshot cũ; giới hạn khóa lưu B chỉ áp dụng mốc đó. [Bản review hiện tại](../quotation-workshop/docs/CHANG-2-REDESIGN.md). Chưa triển khai Chặng3, chưa commit/push.
+Product hiện có đầy đủ luồng A/B và tương thích A gốc. [Preview2](../quotation-workshop/docs/CHANG-2-PREVIEW-2.md) là biên bản lịch sử của snapshot cũ; giới hạn khóa lưu B chỉ áp dụng mốc đó. [Workshop hiện hành revision 4](../quotation-workshop/docs/CHANG-2-REVISION-4.md) và [cặp phiên bản, kiểm tra, cách tiếp tục](../quotation-workshop/docs/CONTINUE-ON-OTHER-MACHINE.md). Chưa triển khai Chặng 3.
 
 
 ## Quy trình Product và Workshop
